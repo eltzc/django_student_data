@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Загрузить файл</title>
+</head>
+<body>
+    <h1>Загрузить файл (JSON или XML)</h1>
+    
+    {% if error_message %}
+        <p style="color: red;">{{ error_message }}</p>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Загрузить</button>
+    </form>
+
+    <a href="{% url 'student_data_list' %}">К списку студентов</a>
+</body>
+</html>

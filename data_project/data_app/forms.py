@@ -8,3 +8,6 @@ class StudentDataForm(forms.ModelForm):
         widgets = {
             'date_received': forms.DateInput(attrs={'type': 'date'})
         }
+
+class UploadFileForm(forms.Form):
+    file = forms.FileField()
