@@ -37,11 +37,10 @@ def upload_file(request):
 
             # Генерируем безопасное имя файла
             fs = FileSystemStorage()
-            filename = fs.save(uploaded_file.name, uploaded_file)  # auto generate name
+            filename = fs.save(uploaded_file.name, uploaded_file)
 
             file_path = os.path.join(settings.MEDIA_ROOT, filename)
 
-            # Валидация содержимого файла
             if file_extension == '.json':
                 data = read_json_file(file_path)
                 if data is None:
@@ -50,19 +49,52 @@ def upload_file(request):
                         'form': form,
                         'error_message': 'JSON файл не валиден.'
                     })
+                # Сохраняем JSON данные в базу
+                for item in data:
+                    try:
+                        StudentData.objects.create(
+                            first_name=item.get('firstName', ''),
+                            last_name=item.get('lastName', ''),
+                            subject=item.get('subject', ''),
+                            grade=item.get('grade', ''),
+                            date_received=item.get('date', '')
+                        )
+                    except Exception as e:
+                        print(f"Ошибка при сохранении JSON: {e}")  # Замените на логирование
+                        return render(request, 'data_app/upload_form.html', {
+                            'form': form,
+                            'error_message': f'Ошибка при сохранении данных из JSON: {e}'
+                        })
             else:  # .xml
-                data = read_xml_file(file_path)
-                if data is None:
+                root = read_xml_file(file_path)
+                if root is None:
                     fs.delete(filename)
                     return render(request, 'data_app/upload_form.html', {
                         'form': form,
                         'error_message': 'XML файл не валиден.'
                     })
+                # Сохраняем XML данные в базу
+                for student_element in root.findall('student'):
+                    try:
+                        StudentData.objects.create(
+                            first_name=student_element.find('firstName').text,
+                            last_name=student_element.find('lastName').text,
+                            subject=student_element.find('subject').text,
+                            grade=student_element.find('grade').text,
+                            date_received=student_element.find('date').text
+                        )
+                    except Exception as e:
+                        print(f"Ошибка при сохранении XML: {e}")  # Замените на логирование
+                        return render(request, 'data_app/upload_form.html', {
+                            'form': form,
+                            'error_message': f'Ошибка при сохранении данных из XML: {e}'
+                        })
 
-            #  Сохраняем путь к файлу в сессии для отображения
-            request.session['uploaded_file_path'] = file_path
+            # Удаляем файл после сохранения
+            fs.delete(filename)
 
-            return redirect('display_file')
+            return redirect('student_data_list')  # Перенаправляем на список
+
     else:
         form = UploadFileForm()
     return render(request, 'data_app/upload_form.html', {'form': form})
