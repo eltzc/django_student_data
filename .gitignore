@@ -1,0 +1,27 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Distribution / packaging
+.eggs/
+dist/
+build/
+sdist/
+*.egg-info/
+
+# Installed packages
+venv/
+env/
+ENV/
+*.env
+
+# Logs and databases
+*.log
+*.db
+*.sqlite3
+
+# OS generated files
+.DS_Store
+Thumbs.db
