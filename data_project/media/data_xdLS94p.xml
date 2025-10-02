@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<students>
+  <student>
+    <firstName>Евгений</firstName>
+    <lastName>Середов</lastName>
+    <subject>Биология</subject>
+    <grade>5.00</grade>
+    <date>2024-01-01</date>
+  </student>
+  <student>
+    <firstName>Анна</firstName>
+    <lastName>Петрова</lastName>
+    <subject>Математика</subject>
+    <grade>4.50</grade>
+    <date>2024-01-05</date>
+  </student>
+</students>
