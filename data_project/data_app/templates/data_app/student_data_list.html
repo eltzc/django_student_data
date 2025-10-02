@@ -6,16 +6,20 @@
 <body>
     <h1>Список данных о студентах</h1>
 
-    <ul>
-        {% for student in students %}
-            <li>
-                {{ student.first_name }} {{ student.last_name }} - {{ student.subject }} ({{ student.grade }})
-            </li>
-        {% endfor %}
-    </ul>
-    <a href="{% url 'student_data_create' %}">Добавить нового студента</a> |
-    <a href="{% url 'upload_file' %}">Загрузить файл</a> |
-    <a href="{% url 'export_data' 'json' %}">Экспорт в JSON</a> |
-    <a href="{% url 'export_data' 'xml' %}">Экспорт в XML</a> |
+    {% if no_data_message %}
+        <p>{{ no_data_message }}</p>
+    {% else %}
+        <ul>
+            {% for student in students %}
+                <li>
+                    {{ student.first_name }} {{ student.last_name }} - {{ student.subject }} ({{ student.grade }}) - Дата оценки: {{ student.date_received }}
+                </li>
+            {% endfor %}
+        </ul>
+        <a href="{% url 'student_data_create' %}">Добавить нового студента</a> |
+        <a href="{% url 'export_data' 'json' %}">Экспорт в JSON</a> |
+        <a href="{% url 'export_data' 'xml' %}">Экспорт в XML</a> |
+        <a href="{% url 'upload_file' %}">Загрузить файл</a>
+    {% endif %}
 </body>
 </html>

@@ -20,8 +20,11 @@ def student_data_create(request):
     return render(request, 'data_app/student_data_form.html', {'form': form})
 
 def student_data_list(request):
-    students = StudentData.objects.all()  # <- Получите все записи из базы данных
-    return render(request, 'data_app/student_data_list.html', {'students': students})  # <- Передайте их в шаблон
+    students = StudentData.objects.all()
+    if not students:  # Проверяем, есть ли данные в базе
+        return render(request, 'data_app/student_data_list.html', {'students': students, 'no_data_message': 'Нет данных о студентах.'})
+
+    return render(request, 'data_app/student_data_list.html', {'students': students})
 
 def upload_file(request):
     if request.method == 'POST':
@@ -107,15 +110,20 @@ def display_file(request):
         return render(request, 'data_app/display_file.html', {'error_message': 'Файл не был загружен.'})
 
     file_extension = os.path.splitext(file_path)[1].lower()
+
+    # Проверяем, существует ли файл
+    if not os.path.exists(file_path):
+        return render(request, 'data_app/display_file.html', {'error_message': 'Файл не найден.'})
+
     if file_extension == '.json':
         data = read_json_file(file_path)
-    else:
+    else:  # .xml
         data = read_xml_file(file_path)
 
     if data is None:
         return render(request, 'data_app/display_file.html', {'error_message': 'Ошибка при чтении файла.'})
-    
-    #  Преобразуем XML-дерево в строку
+
+    # Преобразуем XML-дерево в строку
     if file_extension == '.xml':
         data = ET.tostring(data, encoding='unicode')
 
