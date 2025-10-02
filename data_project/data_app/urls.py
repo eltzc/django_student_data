@@ -13,4 +13,6 @@ urlpatterns = [
 
     # URL для отображения содержимого файла
     path('display/', views.display_file, name='display_file'),
+
+    path('export/<str:format>/', views.export_data, name='export_data'),
 ]

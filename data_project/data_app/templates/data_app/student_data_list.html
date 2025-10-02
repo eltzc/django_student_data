@@ -13,6 +13,8 @@
             </li>
         {% endfor %}
     </ul>
-    <a href="{% url 'student_data_create' %}">Добавить нового студента</a>
+    <a href="{% url 'student_data_create' %}">Добавить нового студента</a> |
+    <a href="{% url 'export_data' 'json' %}">Экспорт в JSON</a> |
+    <a href="{% url 'export_data' 'xml' %}">Экспорт в XML</a>
 </body>
 </html>

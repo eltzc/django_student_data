@@ -4,6 +4,8 @@ from django.core.files.storage import FileSystemStorage  # Для сохране
 from .forms import StudentDataForm, UploadFileForm
 from .models import StudentData
 from .utils import read_json_file, read_xml_file
+from django.http import HttpResponse
+from .utils import export_to_json, export_to_xml
 import xml.etree.ElementTree as ET
 import os  # Для работы с путями
 
@@ -118,3 +120,29 @@ def display_file(request):
         data = ET.tostring(data, encoding='unicode')
 
     return render(request, 'data_app/display_file.html', {'data': data, 'file_extension': file_extension})
+    
+def export_data(request, format):
+    """Экспорт данных о студентах в JSON или XML."""
+    students = StudentData.objects.all()
+    if format == 'json':
+        file_path = os.path.join(settings.MEDIA_ROOT, 'students.json')
+        if export_to_json(students, file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                response = HttpResponse(f.read(), content_type='application/json')
+                response['Content-Disposition'] = 'attachment; filename="students.json"'
+            os.remove(file_path)  # Удаляем временный файл
+            return response
+        else:
+            return HttpResponse("Ошибка при экспорте в JSON", status=500)
+    elif format == 'xml':
+        file_path = os.path.join(settings.MEDIA_ROOT, 'students.xml')
+        if export_to_xml(students, file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                response = HttpResponse(f.read(), content_type='application/xml')
+                response['Content-Disposition'] = 'attachment; filename="students.xml"'
+            os.remove(file_path)  # Удаляем временный файл
+            return response
+        else:
+            return HttpResponse("Ошибка при экспорте в XML", status=500)
+    else:
+        return HttpResponse("Недопустимый формат", status=400)    
