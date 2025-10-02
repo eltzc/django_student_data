@@ -5,6 +5,14 @@
 </head>
 <body>
     <h1>Список данных о студентах</h1>
-    <p>Здесь будет список данных о студентах.</p>
+
+    <ul>
+        {% for student in students %}
+            <li>
+                {{ student.first_name }} {{ student.last_name }} - {{ student.subject }} ({{ student.grade }})
+            </li>
+        {% endfor %}
+    </ul>
+    <a href="{% url 'student_data_create' %}">Добавить нового студента</a>
 </body>
 </html>
