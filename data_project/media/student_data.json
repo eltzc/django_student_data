@@ -1,0 +1,30 @@
+[
+    {
+        "firstName": "Михаил",
+        "lastName": "Середов",
+        "subject": "Математика",
+        "grade": "3",
+        "date": "2025-01-01"
+    },
+    {
+        "firstName": "Михаил",
+        "lastName": "Середов",
+        "subject": "Физ-ра",
+        "grade": "5",
+        "date": "2025-01-02"
+    },
+    {
+        "firstName": "Анна",
+        "lastName": "Петрова",
+        "subject": "Математика",
+        "grade": "4.50",
+        "date": "2024-12-15"
+    },
+    {
+        "firstName": "Евгений",
+        "lastName": "Середов",
+        "subject": "Физика",
+        "grade": "3.5",
+        "date": "2025-01-01"
+    }
+]

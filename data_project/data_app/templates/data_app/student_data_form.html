@@ -1,14 +1,22 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Создать данные о студенте</title>
-</head>
-<body>
+{% extends 'data_app/base.html' %}
+
+{% block title %}Создать данные о студенте{% endblock %}
+
+{% block content %}
     <h1>Создать данные о студенте</h1>
-    <form method="post">
+
+    {% if messages %}
+        <ul class="messages">
+            {% for message in messages %}
+                <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    <form method="post" class="form">
         {% csrf_token %}
         {{ form.as_p }}
-        <button type="submit">Сохранить</button>
+        <button type="submit" class="btn btn-success">Сохранить</button>
+        <a href="{% url 'student_data_list' %}" class="btn btn-secondary">Отмена</a>
     </form>
-</body>
-</html>
+{% endblock %}

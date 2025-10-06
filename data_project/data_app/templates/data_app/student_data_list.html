@@ -1,25 +1,111 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Список данных о студентах</title>
-</head>
-<body>
+{% extends 'data_app/base.html' %}
+
+{% block title %}Список данных о студентах{% endblock %}
+
+{% block content %}
     <h1>Список данных о студентах</h1>
 
+    <form method="get" class="mb-3">
+        <label for="data_source">Источник данных:</label>
+        <select name="data_source" id="data_source" class="form-control">
+            <option value="db"{% if data_source == 'db' %} selected{% endif %}>База данных</option>
+            <option value="file"{% if data_source == 'file' %} selected{% endif %}>Файл</option>
+        </select>
+        <button type="submit" class="btn btn-primary">Показать</button>
+    </form>
+
     {% if no_data_message %}
-        <p>{{ no_data_message }}</p>
+        <p class="alert alert-warning">{{ no_data_message }}</p>
     {% else %}
-        <ul>
+        <div class="form-group">
+            <input type="text" id="search-input" class="form-control" placeholder="Поиск...">
+        </div>
+        <ul id="search-results" class="list-group">
             {% for student in students %}
-                <li>
-                    {{ student.first_name }} {{ student.last_name }} - {{ student.subject }} ({{ student.grade }}) - Дата оценки: {{ student.date_received }}
-                </li>
+                {% if student.first_name %}
+                    <li class="list-group-item">
+                        {{ student.first_name }} {{ student.last_name }} - {{ student.subject }} ({{ student.grade }}) - Дата оценки: {{ student.date_received }}
+                        <a href="{% url 'student_data_update' id=student.id %}" class="btn btn-sm btn-primary">Редактировать</a>
+
+                        <!-- Заменяем форму на кнопку, которая вызывает JS -->
+                        <button type="button" class="btn btn-sm btn-danger delete-student-btn" data-student-id="{{ student.id }}">Удалить</button>
+                    </li>
+                {% else %}
+                    <li class="list-group-item">
+                        {{ student.firstName }} {{ student.lastName }} - {{ student.subject }} ({{ student.grade }}) - Дата оценки: {{ student.date }}
+                    </li>
+                {% endif %}
             {% endfor %}
         </ul>
-        <a href="{% url 'student_data_create' %}">Добавить нового студента</a> |
-        <a href="{% url 'export_data' 'json' %}">Экспорт в JSON</a> |
-        <a href="{% url 'export_data' 'xml' %}">Экспорт в XML</a> |
-        <a href="{% url 'upload_file' %}">Загрузить файл</a>
+        <a href="{% url 'student_data_create' %}" class="btn btn-success mt-2">Добавить нового студента</a>
+        <a href="{% url 'export_data' 'json' %}" class="btn btn-info mt-2">Экспорт в JSON</a>
+        <a href="{% url 'export_data' 'xml' %}" class="btn btn-info mt-2">Экспорт в XML</a>
+        <a href="{% url 'display_all_files' %}" class="btn btn-info mt-2">Показать все файлы</a>
+        <a href="{% url 'upload_file' %}" class="btn btn-info mt-2">Загрузить файл</a>
     {% endif %}
-</body>
-</html>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        $(document).ready(function() {
+            $('#search-input').on('input', function() {
+                var query = $(this).val();
+                // Проверяем, что запрос не пустой и вводим только после 2 символов
+                if (query.length > 2) { 
+                    $.ajax({
+                        url: '{% url "ajax_search_students" %}',
+                        data: {'q': query},
+                        dataType: 'json',
+                        success: function(data) {
+                            $('#search-results').empty();
+                            if (data.results.length > 0) {
+                                $.each(data.results, function(i, student) {
+                                    // Форматируем вывод для БД
+                                    var listItem = '<li class="list-group-item">' + student.first_name + ' ' + student.last_name + ' - ' + student.subject + ' (' + student.grade + ') - Дата оценки: ' + student.date_received + '</li>';
+                                    $('#search-results').append(listItem);
+                                });
+                            } else {
+                                $('#search-results').append('<li class="list-group-item">Ничего не найдено</li>');
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error("AJAX request failed:", status, error);
+                            $('#search-results').empty();
+                            $('#search-results').append('<li class="list-group-item">Ошибка поиска</li>');
+                        }
+                    });
+                } else {
+                    // Если ввели меньше 3 символов, очищаем список, пока не будет нормального запроса
+                    $('#search-results').empty();
+                }
+            });
+
+            // --- AJAX УДАЛЕНИЕ ---
+            $('#search-results').on('click', '.delete-student-btn', function() {
+                var studentId = $(this).data('student-id');
+                var listItem = $(this).closest('.list-group-item'); // Находим родительский <li>
+
+                if (confirm('Вы уверены, что хотите удалить эту запись?')) {
+                    $.ajax({
+                        url: '/student/' + studentId + '/delete/', // Используем URL, созданный в urls.py
+                        type: 'POST',
+                        headers: {'X-CSRFToken': '{{ csrf_token }}'}, // Передаем токен CSRF для POST
+                        dataType: 'json',
+                        success: function(data) {
+                            if (data.success) {
+                                listItem.remove(); // Удаляем элемент из DOM
+                                console.log('Студент ' + studentId + ' удален.');
+                            } else {
+                                alert('Ошибка при удалении: ' + data.error);
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error("AJAX delete failed:", status, error);
+                            alert('Произошла ошибка сервера при удалении.');
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+{% endblock %}

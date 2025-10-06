@@ -1,30 +1,127 @@
-from django.shortcuts import render, redirect
+from django.db.models import Q
+from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
-from django.core.files.storage import FileSystemStorage  # Для сохранения файлов
+from django.core.files.storage import FileSystemStorage
 from .forms import StudentDataForm, UploadFileForm
+from .forms_update import StudentDataUpdateForm 
 from .models import StudentData
-from .utils import read_json_file, read_xml_file
+from .utils import read_json_file, read_xml_file, export_to_json, export_to_xml
 from django.http import HttpResponse
-from .utils import export_to_json, export_to_xml
+from django.http import JsonResponse
 import xml.etree.ElementTree as ET
-import os  # Для работы с путями
+import os
+import json  # Для работы с JSON
+
+
+from django.shortcuts import render, redirect
+from .forms import StudentDataForm, UploadFileForm
+from .forms_update import StudentDataUpdateForm 
+from .models import StudentData
+from django.conf import settings  # Импортируем settings
+from django.contrib import messages # Импортируем messages
+import os
+import json
 
 def student_data_create(request):
     if request.method == 'POST':
         form = StudentDataForm(request.POST)
         if form.is_valid():
-            form.save()
-            return redirect('student_data_list')
+            save_to = form.cleaned_data['save_to']
+
+            if save_to == 'db':
+                # Сохранение в базу данных
+                existing_student = StudentData.objects.filter(
+                    first_name=form.cleaned_data['first_name'],
+                    last_name=form.cleaned_data['last_name'],
+                    subject=form.cleaned_data['subject'],
+                    grade=form.cleaned_data['grade'],
+                    date_received=form.cleaned_data['date_received']
+                ).first()
+
+                if existing_student:
+                    messages.error(request, 'Такая запись уже существует в базе данных.')
+                    return render(request, 'data_app/student_data_form.html', {'form': form})
+                else:
+                    # Вот эти две строки должны быть:
+                    student = form.save(commit=False)
+                    student.save_to = 'db'  # Устанавливаем save_to
+                    student.save()
+                    return redirect('student_data_list')
+
+            elif save_to == 'file':
+                # Сохранение в файл (JSON)
+                student_data = {
+                    'firstName': form.cleaned_data['first_name'],
+                    'lastName': form.cleaned_data['last_name'],
+                    'subject': form.cleaned_data['subject'],
+                    'grade': str(form.cleaned_data['grade']),  # Преобразуем Decimal в строку
+                    'date': str(form.cleaned_data['date_received'])  # Преобразуем Date в строку
+                }
+
+                file_path = os.path.join(settings.MEDIA_ROOT, 'student_data.json')
+
+                # Читаем существующие данные из файла (если он есть)
+                if os.path.exists(file_path):
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        try:
+                            existing_data = json.load(f)
+                        except json.JSONDecodeError:
+                            existing_data = []  # Если файл пустой или невалидный JSON
+                else:
+                    existing_data = []
+
+                # Добавляем новые данные
+                existing_data.append(student_data)
+
+                # Записываем обратно в файл
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    json.dump(existing_data, f, ensure_ascii=False, indent=4)  # Для красивого форматирования
+                messages.success(request, 'Данные сохранены в файл')
+                return redirect('student_data_list')
+        else:
+            return render(request, 'data_app/student_data_form.html', {'form': form})
     else:
         form = StudentDataForm()
     return render(request, 'data_app/student_data_form.html', {'form': form})
+    
+import json  # Добавляем импорт json
+from django.conf import settings
+from django.shortcuts import render
+import os
+
 
 def student_data_list(request):
-    students = StudentData.objects.all()
-    if not students:  # Проверяем, есть ли данные в базе
-        return render(request, 'data_app/student_data_list.html', {'students': students, 'no_data_message': 'Нет данных о студентах.'})
+    data_source = request.GET.get('data_source', 'db') # Получаем из GET-параметров, по умолчанию 'db'
 
-    return render(request, 'data_app/student_data_list.html', {'students': students})
+    if data_source == 'db':
+        # Получаем данные из базы данных
+        students = StudentData.objects.all()
+        if not students:  # Проверяем, есть ли данные в базе
+            no_data_message = 'Нет данных о студентах в базе данных.'
+        else:
+            no_data_message = None
+    elif data_source == 'file':
+        # Получаем данные из файла (JSON)
+        file_path = os.path.join(settings.MEDIA_ROOT, 'student_data.json')
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                students = json.load(f)
+            no_data_message = None  # Сбрасываем сообщение об отсутствии данных, если файл прочитан
+        except FileNotFoundError:
+            students = []
+            no_data_message = 'Файл с данными не найден.'
+        except json.JSONDecodeError:
+            students = []
+            no_data_message = 'Ошибка при чтении файла с данными.'
+        except Exception as e:
+            students = []
+            no_data_message = f'Ошибка {e}'
+    else:
+        # Обработка некорректного значения data_source
+        students = []
+        no_data_message = 'Некорректно указан источник данных.'
+
+    return render(request, 'data_app/student_data_list.html', {'students': students, 'data_source': data_source, 'no_data_message': no_data_message})
 
 def upload_file(request):
     if request.method == 'POST':
@@ -128,7 +225,48 @@ def display_file(request):
         data = ET.tostring(data, encoding='unicode')
 
     return render(request, 'data_app/display_file.html', {'data': data, 'file_extension': file_extension})
-    
+
+def display_all_files(request):
+    """Отображает содержимое всех JSON/XML файлов из MEDIA_ROOT."""
+    files_path = settings.MEDIA_ROOT
+    files_data = []  # Список для хранения информации о файлах (имя и содержимое)
+
+    try:
+        all_files = os.listdir(files_path)
+        json_xml_files = [f for f in all_files if f.endswith('.json') or f.endswith('.xml')]
+
+        if not json_xml_files:
+            return render(request, 'data_app/display_all_files.html', {'message': 'Файлы JSON/XML не найдены.'})
+
+        for file_name in json_xml_files:
+            file_path = os.path.join(files_path, file_name)
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    file_extension = os.path.splitext(file_name)[1].lower()
+                    if file_extension == '.json':
+                        try:
+                            data = json.load(f)
+                            content = json.dumps(data, indent=4, ensure_ascii=False)  # Форматируем JSON
+                        except json.JSONDecodeError as e:
+                            content = f"Ошибка JSON: {e}"
+                    elif file_extension == '.xml':
+                        try:
+                            tree = ET.parse(f)
+                            root = tree.getroot()
+                            content = ET.tostring(root, encoding='utf-8').decode('utf-8')
+                        except ET.ParseError as e:
+                            content = f"Ошибка XML: {e}"
+                    else:
+                        content = "Неизвестный формат"
+                    files_data.append({'name': file_name, 'content': content}) # Добавляем данные файла в список
+            except Exception as e:
+                files_data.append({'name': file_name, 'content': f"Ошибка открытия: {e}"})
+
+    except FileNotFoundError:
+        return render(request, 'data_app/display_all_files.html', {'message': 'Директория не найдена.'})
+
+    return render(request, 'data_app/display_all_files.html', {'files_data': files_data}) # Передаем список файлов в шаблон    
+
 def export_data(request, format):
     """Экспорт данных о студентах в JSON или XML."""
     students = StudentData.objects.all()
@@ -153,4 +291,56 @@ def export_data(request, format):
         else:
             return HttpResponse("Ошибка при экспорте в XML", status=500)
     else:
-        return HttpResponse("Недопустимый формат", status=400)    
+        return HttpResponse("Недопустимый формат", status=400)
+
+def ajax_search_students(request):
+    # data_source = request.GET.get('data_source', 'db')  # Получаем источник из GET
+    # if data_source != 'db': # Больше не нужно проверять settings
+    #     # Если мы не в режиме работы с БД, поиск неактуален
+    #     return JsonResponse({"error": "Поиск доступен только для режима базы данных."}, status=403)
+
+    query = request.GET.get('q', '')
+    
+    if not query:
+        # Если запрос пустой, возвращаем пустой список
+        return JsonResponse({'results': []})
+
+    # Фильтрация по полям, содержащим поисковый запрос (case-insensitive)
+    results = StudentData.objects.filter(
+        Q(first_name__icontains=query) |
+        Q(last_name__icontains=query) |
+        Q(subject__icontains=query)
+    ).values('id', 'first_name', 'last_name', 'subject', 'grade', 'date_received')
+
+    # Преобразование QuerySet в список словарей
+    student_list = list(results)
+    
+    # Django сам преобразует стандартные типы данных (str, int, Decimal) в JSON
+    return JsonResponse({'results': student_list})
+
+    
+def student_data_update(request, id):
+    student = get_object_or_404(StudentData, pk=id)
+    if request.method == "POST":
+        form = StudentDataUpdateForm(request.POST, instance=student)  # Используем новую форму
+        if form.is_valid():
+            form.save()
+            return redirect('student_data_list')
+        else:
+            # Форма не прошла валидацию, ошибки будут отображены
+            return render(request, 'data_app/student_data_update.html', {'form': form, 'student': student})
+    else:
+        form = StudentDataUpdateForm(instance=student)  # Используем новую форму
+    return render(request, 'data_app/student_data_update.html', {'form': form, 'student': student})
+
+def student_data_delete(request, id):
+        
+    if request.method != "POST":
+        return JsonResponse({"error": "Метод не разрешен."}, status=405)
+
+    try:
+        student = StudentData.objects.get(pk=id)
+        student.delete()
+        return JsonResponse({"success": True, "id_deleted": id})
+    except StudentData.DoesNotExist:
+        return JsonResponse({"error": "Запись не найдена."}, status=404)

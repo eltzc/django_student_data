@@ -1,21 +1,18 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Загрузить файл</title>
-</head>
-<body>
-    <h1>Загрузить файл (JSON или XML)</h1>
-    
-    {% if error_message %}
-        <p style="color: red;">{{ error_message }}</p>
-    {% endif %}
+{% extends 'data_app/base.html' %}
 
-    <form method="post" enctype="multipart/form-data">
+{% block title %}Загрузить файл{% endblock %}
+
+{% block content %}
+    <h1>Загрузить файл</h1>
+
+    {% if error_message %}
+        <div class="alert alert-danger">{{ error_message }}</div>
+    {% endif %}
+    
+    <form method="post" enctype="multipart/form-data" class="form">
         {% csrf_token %}
         {{ form.as_p }}
-        <button type="submit">Загрузить</button>
+        <button type="submit" class="btn btn-primary">Загрузить</button>
+        <a href="{% url 'student_data_list' %}" class="btn btn-secondary">Отмена</a>
     </form>
-
-    <a href="{% url 'student_data_list' %}">К списку студентов</a>
-</body>
-</html>
+{% endblock %}
